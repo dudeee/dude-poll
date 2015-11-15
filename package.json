@@ -1,6 +1,6 @@
 {
-  "name": "bolt-template",
-  "version": "1.0.2",
+  "name": "bolt-survey",
+  "version": "1.0.0",
   "description": "Template for bolt plugins",
   "main": "build/index.js",
   "scripts": {
