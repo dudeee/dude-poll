@@ -76,6 +76,7 @@ exports['default'] = function (bot) {
     options = options.split(',');
 
     var votes = {};
+    var possible = [];
     var _iteratorNormalCompletion2 = true;
     var _didIteratorError2 = false;
     var _iteratorError2 = undefined;
@@ -86,6 +87,8 @@ exports['default'] = function (bot) {
 
         option = option.replace(/:/g, '');
         votes[option] = 0;
+
+        possible.push(':' + option + ':');
       }
     } catch (err) {
       _didIteratorError2 = true;
@@ -102,6 +105,8 @@ exports['default'] = function (bot) {
       }
     }
 
+    possible = possible.join(', ');
+
     var index = surveys.push({
       subject: subject, options: options, active: true, votes: votes
     }) - 1;
@@ -113,7 +118,7 @@ exports['default'] = function (bot) {
 
     bot.sendMessage(im, 'Survey id: ' + index + '\nUse this id to close the survey. See `help survey`');
 
-    message.reply('Survey: _' + subject + '_').then(function (r) {
+    message.reply('Survey: _' + subject + '_\nOptions available: ' + possible).then(function (r) {
       survey.message = r;
     });
   });

@@ -40,10 +40,15 @@ export default bot => {
     options = options.split(',');
 
     let votes = {};
+    let possible = [];
     for (let option of options) {
       option = option.replace(/:/g, '');
       votes[option] = 0;
+
+      possible.push(`:${option}:`);
     }
+
+    possible = possible.join(', ');
 
     let index = surveys.push({
       subject, options, active: true, votes
@@ -55,7 +60,8 @@ export default bot => {
     bot.sendMessage(im, `Survey id: ${index}
 Use this id to close the survey. See \`help survey\``);
 
-    message.reply(`Survey: _${subject}_`).then(r => {
+    message.reply(`Survey: _${subject}_\nOptions available: ${possible}`)
+    .then(r => {
       survey.message = r;
     });
   })
