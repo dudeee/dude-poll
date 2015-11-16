@@ -60,7 +60,7 @@ export default bot => {
     bot.sendMessage(im, `Survey id: ${index}
 Use this id to close the survey. See \`help survey\``);
 
-    message.reply(`Survey: _${subject}_\nOptions available: ${possible}`)
+    message.reply(`Survey: _${subject}_\nAvailable options: ${possible}`)
     .then(r => {
       survey.message = r;
     });

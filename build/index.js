@@ -118,7 +118,7 @@ exports['default'] = function (bot) {
 
     bot.sendMessage(im, 'Survey id: ' + index + '\nUse this id to close the survey. See `help survey`');
 
-    message.reply('Survey: _' + subject + '_\nOptions available: ' + possible).then(function (r) {
+    message.reply('Survey: _' + subject + '_\nAvailable options: ' + possible).then(function (r) {
       survey.message = r;
     });
   });
