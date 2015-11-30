@@ -1,39 +1,48 @@
 export default bot => {
-  const surveys = [];
+  const polls = [];
 
-  const formatResult = survey => {
+  const formatResult = poll => {
     let result = '';
 
-    for (let vote of Object.keys(survey.votes)) {
-      let value = survey.votes[vote];
+    for (let vote of Object.keys(poll.votes)) {
+      let value = poll.votes[vote];
       result += `:${vote}: => ${value}\n`;
     }
 
     return result;
   }
 
-  const showResult = (message, close) => {
+  bot.listen(/poll close (\d+)/i, message => {
     let [, id] = message.match;
     if (!id) return;
 
-    let survey = surveys[id];
+    let poll = polls[id];
 
-    if (close) survey.active = false;
+    if (poll.user !== message.user) {
+      let user = bot.find(poll.user);
+      message.reply(`You are not the owner of poll, Only @${user.name} can close the poll.`);
+      return;
+    }
 
-    let result = formatResult(survey);
+    poll.close = true;
 
-    message.reply(`Results for survey _${survey.subject}_\n` + result);
-  }
+    let result = formatResult(poll);
 
-  bot.listen(/survey close (\d+)/i, message => {
-    showResult(message, true);
+    message.reply(`Results for poll _${poll.subject}_\n` + result);
   });
 
-  bot.listen(/survey result(?:s)? (\d+)/i, message => {
-    showResult(message);
+  bot.listen(/poll result(?:s)? (\d+)/i, message => {
+    let [, id] = message.match;
+    if (!id) return;
+
+    let poll = polls[id];
+
+    let result = formatResult(poll);
+
+    message.reply(`Closed poll _${poll.subject}_, Results:` + result);
   })
 
-  bot.listen(/survey #(.*)# (.*)/i, message => {
+  bot.listen(/poll #(.*)# (.*)/i, message => {
     let [, subject, options] = message.match;
     if (!subject || !options) return;
 
@@ -42,7 +51,7 @@ export default bot => {
     let votes = {};
     let possible = [];
     for (let option of options) {
-      option = option.replace(/:/g, '');
+      option = option.replace(/:/g, '').trim();
       votes[option] = 0;
 
       possible.push(`:${option}:`);
@@ -50,52 +59,54 @@ export default bot => {
 
     possible = possible.join(', ');
 
-    let index = surveys.push({
-      subject, options, active: true, votes
+    let index = polls.push({
+      subject, options, active: true, votes,
+      user: message.user
     }) - 1;
-    let survey = surveys[index];
+    let poll = polls[index];
 
     let im = bot.ims.find(im => im.user === message.user).id;
 
-    bot.sendMessage(im, `Survey id: ${index}
-Use this id to close the survey. See \`help survey\``);
+    bot.sendMessage(im, `Poll id for _${subject}_: ${index}
+Use this id to close the poll. See \`help poll\``);
 
-    message.reply(`Survey: _${subject}_\nAvailable options: ${possible}`)
+    message.reply(`Poll: _${subject}_\nAvailable options: ${possible}`)
     .then(r => {
-      survey.message = r;
+      poll.message = r;
     });
   })
 
   bot.on('reaction_added', function listener(ev) {
-    let active = surveys.filter(s => s.active);
-    for (let survey of active) {
-      if (ev.item.ts === survey.message.ts) {
-        if (typeof survey.votes[ev.reaction] === 'undefined') return;
+    let active = polls.filter(s => s.active);
+    for (let poll of active) {
+      if (ev.item.ts === poll.message.ts) {
+        if (typeof poll.votes[ev.reaction] === 'undefined') return;
 
-        survey.votes[ev.reaction]++;
+        poll.votes[ev.reaction]++;
       }
     }
   });
 
   bot.on('reaction_removed', function listener(ev) {
-    let active = surveys.filter(s => s.active);
-    for (let survey of active) {
-      if (ev.item.ts === survey.message.ts) {
-        if (typeof survey.votes[ev.reaction] === 'undefined') return;
+    let active = polls.filter(s => s.active);
+    for (let poll of active) {
+      if (ev.item.ts === poll.message.ts) {
+        if (typeof poll.votes[ev.reaction] === 'undefined') return;
 
-        survey.votes[ev.reaction]--;
+        poll.votes[ev.reaction]--;
       }
     }
   });
 
-  bot.help('survey', 'Call for a survey', `
-survey #<subject># <options>
+  bot.help('poll', 'Create a poll', `
+poll #<subject># <options>
 Subject must be inside two hashes.
 Options is a comma-separated list of acceptable reaction emojis
 
-survey close <id>
-Close the survey and show the results
+poll close <id>
+Close the poll and show the results
+Only the owner of poll is allowed to close the survey.
 
-survey result(s) <id>
-Show results of a survey`);
+poll result(s) <id>
+Show results of a poll`);
 }

@@ -7,9 +7,9 @@ Object.defineProperty(exports, '__esModule', {
 var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i['return']) _i['return'](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError('Invalid attempt to destructure non-iterable instance'); } }; })();
 
 exports['default'] = function (bot) {
-  var surveys = [];
+  var polls = [];
 
-  var formatResult = function formatResult(survey) {
+  var formatResult = function formatResult(poll) {
     var result = '';
 
     var _iteratorNormalCompletion = true;
@@ -17,10 +17,10 @@ exports['default'] = function (bot) {
     var _iteratorError = undefined;
 
     try {
-      for (var _iterator = Object.keys(survey.votes)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+      for (var _iterator = Object.keys(poll.votes)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
         var vote = _step.value;
 
-        var value = survey.votes[vote];
+        var value = poll.votes[vote];
         result += ':' + vote + ': => ' + value + '\n';
       }
     } catch (err) {
@@ -41,35 +41,47 @@ exports['default'] = function (bot) {
     return result;
   };
 
-  var showResult = function showResult(message, close) {
+  bot.listen(/poll close (\d+)/i, function (message) {
     var _message$match = _slicedToArray(message.match, 2);
 
     var id = _message$match[1];
 
     if (!id) return;
 
-    var survey = surveys[id];
+    var poll = polls[id];
 
-    if (close) survey.active = false;
+    if (poll.user !== message.user) {
+      var user = bot.find(poll.user);
+      message.reply('You are not the owner of poll, Only @' + user.name + ' can close the poll.');
+      return;
+    }
 
-    var result = formatResult(survey);
+    poll.close = true;
 
-    message.reply('Results for survey _' + survey.subject + '_\n' + result);
-  };
+    var result = formatResult(poll);
 
-  bot.listen(/survey close (\d+)/i, function (message) {
-    showResult(message, true);
+    message.reply('Results for poll _' + poll.subject + '_\n' + result);
   });
 
-  bot.listen(/survey result(?:s)? (\d+)/i, function (message) {
-    showResult(message);
+  bot.listen(/poll result(?:s)? (\d+)/i, function (message) {
+    var _message$match2 = _slicedToArray(message.match, 2);
+
+    var id = _message$match2[1];
+
+    if (!id) return;
+
+    var poll = polls[id];
+
+    var result = formatResult(poll);
+
+    message.reply('Closed poll _' + poll.subject + '_, Results:' + result);
   });
 
-  bot.listen(/survey #(.*)# (.*)/i, function (message) {
-    var _message$match2 = _slicedToArray(message.match, 3);
+  bot.listen(/poll #(.*)# (.*)/i, function (message) {
+    var _message$match3 = _slicedToArray(message.match, 3);
 
-    var subject = _message$match2[1];
-    var options = _message$match2[2];
+    var subject = _message$match3[1];
+    var options = _message$match3[2];
 
     if (!subject || !options) return;
 
@@ -85,7 +97,7 @@ exports['default'] = function (bot) {
       for (var _iterator2 = options[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
         var option = _step2.value;
 
-        option = option.replace(/:/g, '');
+        option = option.replace(/:/g, '').trim();
         votes[option] = 0;
 
         possible.push(':' + option + ':');
@@ -107,24 +119,25 @@ exports['default'] = function (bot) {
 
     possible = possible.join(', ');
 
-    var index = surveys.push({
-      subject: subject, options: options, active: true, votes: votes
+    var index = polls.push({
+      subject: subject, options: options, active: true, votes: votes,
+      user: message.user
     }) - 1;
-    var survey = surveys[index];
+    var poll = polls[index];
 
     var im = bot.ims.find(function (im) {
       return im.user === message.user;
     }).id;
 
-    bot.sendMessage(im, 'Survey id: ' + index + '\nUse this id to close the survey. See `help survey`');
+    bot.sendMessage(im, 'Poll id for _' + subject + '_: ' + index + '\nUse this id to close the poll. See `help poll`');
 
-    message.reply('Survey: _' + subject + '_\nAvailable options: ' + possible).then(function (r) {
-      survey.message = r;
+    message.reply('Poll: _' + subject + '_\nAvailable options: ' + possible).then(function (r) {
+      poll.message = r;
     });
   });
 
   bot.on('reaction_added', function listener(ev) {
-    var active = surveys.filter(function (s) {
+    var active = polls.filter(function (s) {
       return s.active;
     });
     var _iteratorNormalCompletion3 = true;
@@ -133,12 +146,12 @@ exports['default'] = function (bot) {
 
     try {
       for (var _iterator3 = active[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
-        var survey = _step3.value;
+        var poll = _step3.value;
 
-        if (ev.item.ts === survey.message.ts) {
-          if (typeof survey.votes[ev.reaction] === 'undefined') return;
+        if (ev.item.ts === poll.message.ts) {
+          if (typeof poll.votes[ev.reaction] === 'undefined') return;
 
-          survey.votes[ev.reaction]++;
+          poll.votes[ev.reaction]++;
         }
       }
     } catch (err) {
@@ -158,7 +171,7 @@ exports['default'] = function (bot) {
   });
 
   bot.on('reaction_removed', function listener(ev) {
-    var active = surveys.filter(function (s) {
+    var active = polls.filter(function (s) {
       return s.active;
     });
     var _iteratorNormalCompletion4 = true;
@@ -167,12 +180,12 @@ exports['default'] = function (bot) {
 
     try {
       for (var _iterator4 = active[Symbol.iterator](), _step4; !(_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
-        var survey = _step4.value;
+        var poll = _step4.value;
 
-        if (ev.item.ts === survey.message.ts) {
-          if (typeof survey.votes[ev.reaction] === 'undefined') return;
+        if (ev.item.ts === poll.message.ts) {
+          if (typeof poll.votes[ev.reaction] === 'undefined') return;
 
-          survey.votes[ev.reaction]--;
+          poll.votes[ev.reaction]--;
         }
       }
     } catch (err) {
@@ -191,7 +204,7 @@ exports['default'] = function (bot) {
     }
   });
 
-  bot.help('survey', 'Call for a survey', '\nsurvey #<subject># <options>\nSubject must be inside two hashes.\nOptions is a comma-separated list of acceptable reaction emojis\n\nsurvey close <id>\nClose the survey and show the results\n\nsurvey result(s) <id>\nShow results of a survey');
+  bot.help('poll', 'Create a poll', '\npoll #<subject># <options>\nSubject must be inside two hashes.\nOptions is a comma-separated list of acceptable reaction emojis\n\npoll close <id>\nClose the poll and show the results\nOnly the owner of poll is allowed to close the survey.\n\npoll result(s) <id>\nShow results of a poll');
 };
 
 module.exports = exports['default'];
