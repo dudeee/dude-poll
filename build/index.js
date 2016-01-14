@@ -8,6 +8,7 @@ var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = 
 
 exports['default'] = function (bot) {
   var polls = [];
+  var NUMBERS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 
   var formatResult = function formatResult(poll) {
     var result = '';
@@ -21,7 +22,7 @@ exports['default'] = function (bot) {
         var vote = _step.value;
 
         var value = poll.votes[vote];
-        result += ':' + vote + ': => ' + value + '\n';
+        result += '( *' + value + '* ) ' + poll.options[vote] + '\n';
       }
     } catch (err) {
       _didIteratorError = true;
@@ -42,9 +43,9 @@ exports['default'] = function (bot) {
   };
 
   bot.listen(/poll close (\d+)/i, function (message) {
-    var _message$match = _slicedToArray(message.match, 2);
+    var _message$match = _slicedToArray(message.match, 1);
 
-    var id = _message$match[1];
+    var id = _message$match[0];
 
     if (!id) return;
 
@@ -56,17 +57,17 @@ exports['default'] = function (bot) {
       return;
     }
 
-    poll.close = true;
+    poll.active = false;
 
     var result = formatResult(poll);
 
-    message.reply('Results for poll _' + poll.subject + '_\n' + result);
+    message.reply('Closed poll *' + poll.subject + '*, results:\n' + result);
   });
 
   bot.listen(/poll result(?:s)? (\d+)/i, function (message) {
-    var _message$match2 = _slicedToArray(message.match, 2);
+    var _message$match2 = _slicedToArray(message.match, 1);
 
-    var id = _message$match2[1];
+    var id = _message$match2[0];
 
     if (!id) return;
 
@@ -74,33 +75,68 @@ exports['default'] = function (bot) {
 
     var result = formatResult(poll);
 
-    message.reply('Closed poll _' + poll.subject + '_, Results:' + result);
+    bot.sendMessage(poll.channel, 'Results for *' + poll.subject + '*\n' + result);
   });
 
-  bot.listen(/poll #(.*)# (.*)/i, function (message) {
-    var _message$match3 = _slicedToArray(message.match, 3);
+  bot.listen(/poll "(.*?)" (?:"(.*)")*/i, function (message) {
+    var _ref = message.match || message.asciiMatch;
 
-    var subject = _message$match3[1];
-    var options = _message$match3[2];
+    var _ref2 = _slicedToArray(_ref, 2);
 
-    if (!subject || !options) return;
+    var subject = _ref2[0];
+    var options = _ref2[1];
 
-    options = options.split(',');
+    options = options.split('" "');
 
-    var votes = {};
-    var possible = [];
+    if (!subject || !options.length) return;
+
+    var votes = new Array(options.length).fill(0);
+
+    var index = polls.push({
+      subject: subject, options: options, active: true, votes: votes,
+      user: message.user,
+      channel: message.channel
+    }) - 1;
+
+    var poll = polls[index];
+
+    var im = bot.ims.find(function (im) {
+      return im.user === message.user;
+    }).id;
+
+    bot.sendMessage(im, 'Poll id for _' + subject + '_: ' + index + '\nUse this id to close the poll. See `help poll`');
+
+    var optionsDisplay = options.map(function (text, index) {
+      return ':' + NUMBERS[index] + ': ' + text;
+    }).join('\n');
+
+    message.reply('Poll: _' + subject + '_\nAvailable options:\n' + optionsDisplay).then(function (r) {
+      poll.message = r;
+    });
+  });
+
+  bot.on('reaction_added', function listener(ev) {
+    var active = polls.filter(function (s) {
+      return s.active;
+    });
     var _iteratorNormalCompletion2 = true;
     var _didIteratorError2 = false;
     var _iteratorError2 = undefined;
 
     try {
-      for (var _iterator2 = options[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-        var option = _step2.value;
+      for (var _iterator2 = active[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+        var poll = _step2.value;
 
-        option = option.replace(/:/g, '').trim();
-        votes[option] = 0;
+        if (ev.item.ts === poll.message.ts) {
+          var index = NUMBERS.findIndex(function (a) {
+            return a === ev.reaction;
+          });
+          console.log(index);
 
-        possible.push(':' + option + ':');
+          if (index < 0 || typeof poll.votes[index] === 'undefined') return;
+
+          poll.votes[index]++;
+        }
       }
     } catch (err) {
       _didIteratorError2 = true;
@@ -116,27 +152,9 @@ exports['default'] = function (bot) {
         }
       }
     }
-
-    possible = possible.join(', ');
-
-    var index = polls.push({
-      subject: subject, options: options, active: true, votes: votes,
-      user: message.user
-    }) - 1;
-    var poll = polls[index];
-
-    var im = bot.ims.find(function (im) {
-      return im.user === message.user;
-    }).id;
-
-    bot.sendMessage(im, 'Poll id for _' + subject + '_: ' + index + '\nUse this id to close the poll. See `help poll`');
-
-    message.reply('Poll: _' + subject + '_\nAvailable options: ' + possible).then(function (r) {
-      poll.message = r;
-    });
   });
 
-  bot.on('reaction_added', function listener(ev) {
+  bot.on('reaction_removed', function listener(ev) {
     var active = polls.filter(function (s) {
       return s.active;
     });
@@ -149,9 +167,13 @@ exports['default'] = function (bot) {
         var poll = _step3.value;
 
         if (ev.item.ts === poll.message.ts) {
-          if (typeof poll.votes[ev.reaction] === 'undefined') return;
+          var index = NUMBERS.findIndex(function (a) {
+            return a === ev.reaction;
+          });
 
-          poll.votes[ev.reaction]++;
+          if (index < 0 || typeof poll.votes[index] === 'undefined') return;
+
+          poll.votes[index]--;
         }
       }
     } catch (err) {
@@ -170,41 +192,7 @@ exports['default'] = function (bot) {
     }
   });
 
-  bot.on('reaction_removed', function listener(ev) {
-    var active = polls.filter(function (s) {
-      return s.active;
-    });
-    var _iteratorNormalCompletion4 = true;
-    var _didIteratorError4 = false;
-    var _iteratorError4 = undefined;
-
-    try {
-      for (var _iterator4 = active[Symbol.iterator](), _step4; !(_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
-        var poll = _step4.value;
-
-        if (ev.item.ts === poll.message.ts) {
-          if (typeof poll.votes[ev.reaction] === 'undefined') return;
-
-          poll.votes[ev.reaction]--;
-        }
-      }
-    } catch (err) {
-      _didIteratorError4 = true;
-      _iteratorError4 = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion4 && _iterator4['return']) {
-          _iterator4['return']();
-        }
-      } finally {
-        if (_didIteratorError4) {
-          throw _iteratorError4;
-        }
-      }
-    }
-  });
-
-  bot.help('poll', 'Create a poll', '\npoll #<subject># <options>\nSubject must be inside two hashes.\nOptions is a comma-separated list of acceptable reaction emojis\n\npoll close <id>\nClose the poll and show the results\nOnly the owner of poll is allowed to close the survey.\n\npoll result(s) <id>\nShow results of a poll');
+  bot.help('poll', 'Start a poll', '\npoll "<question>" "option1" "option2" "option3"\nArguments should be wrapped in quotes and options are space-separated\n\npoll close <id>\nClose the poll and show the results\nOnly the owner of poll is allowed to close the poll.\n\npoll result <id>\nShow results of a poll');
 };
 
 module.exports = exports['default'];

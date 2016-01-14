@@ -1,7 +1,7 @@
 {
   "name": "bolt-poll",
-  "version": "1.3.0",
-  "description": "Template for bolt plugins",
+  "version": "2.0.0",
+  "description": "A bolt plugin to create and manage polls",
   "main": "build/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -11,7 +11,7 @@
   ],
   "author": "Mahdi Dibaiee <mdibaiee@aol.com> (http://dibaiee.ir/)",
   "license": "MIT",
-  "dependencies": {
+  "devDependencies": {
     "babel": "5.8.3",
     "grunt": "0.4.5",
     "grunt-babel": "5.0.3",

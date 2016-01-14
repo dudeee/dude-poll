@@ -1,19 +1,21 @@
 export default bot => {
   const polls = [];
+	const NUMBERS = ['zero', 'one', 'two', 'three', 'four', 'five',
+									 'six', 'seven', 'eight', 'nine', 'ten'];
 
   const formatResult = poll => {
-    let result = '';
+		let result = '';
 
     for (let vote of Object.keys(poll.votes)) {
       let value = poll.votes[vote];
-      result += `:${vote}: => ${value}\n`;
+      result += `( *${value}* ) ${poll.options[vote]}\n`;
     }
 
     return result;
   }
 
   bot.listen(/poll close (\d+)/i, message => {
-    let [, id] = message.match;
+    let [id] = message.match;
     if (!id) return;
 
     let poll = polls[id];
@@ -24,45 +26,38 @@ export default bot => {
       return;
     }
 
-    poll.close = true;
+    poll.active = false;
 
     let result = formatResult(poll);
 
-    message.reply(`Results for poll _${poll.subject}_\n` + result);
+    message.reply(`Closed poll *${poll.subject}*, results:\n` + result);
   });
 
   bot.listen(/poll result(?:s)? (\d+)/i, message => {
-    let [, id] = message.match;
+    let [id] = message.match;
     if (!id) return;
 
     let poll = polls[id];
 
     let result = formatResult(poll);
 
-    message.reply(`Closed poll _${poll.subject}_, Results:` + result);
+    bot.sendMessage(poll.channel, `Results for *${poll.subject}*\n` + result);
   })
 
-  bot.listen(/poll #(.*)# (.*)/i, message => {
-    let [, subject, options] = message.match;
-    if (!subject || !options) return;
+  bot.listen(/poll "(.*?)" (?:"(.*)")*/i, message => {
+    let [subject, options] = message.match || message.asciiMatch;
+		options = options.split('" "');
 
-    options = options.split(',');
+    if (!subject || !options.length) return;
 
-    let votes = {};
-    let possible = [];
-    for (let option of options) {
-      option = option.replace(/:/g, '').trim();
-      votes[option] = 0;
-
-      possible.push(`:${option}:`);
-    }
-
-    possible = possible.join(', ');
+    let votes = new Array(options.length).fill(0);
 
     let index = polls.push({
       subject, options, active: true, votes,
-      user: message.user
+      user: message.user,
+			channel: message.channel
     }) - 1;
+
     let poll = polls[index];
 
     let im = bot.ims.find(im => im.user === message.user).id;
@@ -70,7 +65,11 @@ export default bot => {
     bot.sendMessage(im, `Poll id for _${subject}_: ${index}
 Use this id to close the poll. See \`help poll\``);
 
-    message.reply(`Poll: _${subject}_\nAvailable options: ${possible}`)
+		let optionsDisplay = options.map((text, index) => {
+			return `:${NUMBERS[index]}: ${text}`;
+		}).join('\n');
+
+    message.reply(`Poll: _${subject}_\nAvailable options:\n${optionsDisplay}`)
     .then(r => {
       poll.message = r;
     });
@@ -80,9 +79,12 @@ Use this id to close the poll. See \`help poll\``);
     let active = polls.filter(s => s.active);
     for (let poll of active) {
       if (ev.item.ts === poll.message.ts) {
-        if (typeof poll.votes[ev.reaction] === 'undefined') return;
+				let index = NUMBERS.findIndex(a => a === ev.reaction);
+				console.log(index);
 
-        poll.votes[ev.reaction]++;
+        if (index < 0 || typeof poll.votes[index] === 'undefined') return;
+
+        poll.votes[index]++;
       }
     }
   });
@@ -91,22 +93,23 @@ Use this id to close the poll. See \`help poll\``);
     let active = polls.filter(s => s.active);
     for (let poll of active) {
       if (ev.item.ts === poll.message.ts) {
-        if (typeof poll.votes[ev.reaction] === 'undefined') return;
+				let index = NUMBERS.findIndex(a => a === ev.reaction);
 
-        poll.votes[ev.reaction]--;
+        if (index < 0 || typeof poll.votes[index] === 'undefined') return;
+
+        poll.votes[index]--;
       }
     }
   });
 
-  bot.help('poll', 'Create a poll', `
-poll #<subject># <options>
-Subject must be inside two hashes.
-Options is a comma-separated list of acceptable reaction emojis
+  bot.help('poll', 'Start a poll', `
+poll "<question>" "option1" "option2" "option3"
+Arguments should be wrapped in quotes and options are space-separated
 
 poll close <id>
 Close the poll and show the results
-Only the owner of poll is allowed to close the survey.
+Only the owner of poll is allowed to close the poll.
 
-poll result(s) <id>
+poll result <id>
 Show results of a poll`);
 }
