@@ -1,7 +1,7 @@
 export default bot => {
+  const { numbers, emojify } = bot.utils;
+
   const polls = [];
-	const NUMBERS = ['zero', 'one', 'two', 'three', 'four', 'five',
-									 'six', 'seven', 'eight', 'nine', 'ten'];
 
   const formatResult = poll => {
 		let result = '';
@@ -66,7 +66,8 @@ export default bot => {
 Use this id to close the poll. See \`help poll\``);
 
 		let optionsDisplay = options.map((text, index) => {
-			return `:${NUMBERS[index]}: ${text}`;
+      let num = emojify(numbers[index]);
+			return `${num} ${text}`;
 		}).join('\n');
 
     message.reply(`Poll: _${subject}_\nAvailable options:\n${optionsDisplay}`)
@@ -79,8 +80,7 @@ Use this id to close the poll. See \`help poll\``);
     let active = polls.filter(s => s.active);
     for (let poll of active) {
       if (ev.item.ts === poll.message.ts) {
-				let index = NUMBERS.findIndex(a => a === ev.reaction);
-				console.log(index);
+				let index = numbers.indexOf(ev.reaction);
 
         if (index < 0 || typeof poll.votes[index] === 'undefined') return;
 
@@ -93,7 +93,7 @@ Use this id to close the poll. See \`help poll\``);
     let active = polls.filter(s => s.active);
     for (let poll of active) {
       if (ev.item.ts === poll.message.ts) {
-				let index = NUMBERS.findIndex(a => a === ev.reaction);
+				let index = numbers.indexOf(ev.reaction);
 
         if (index < 0 || typeof poll.votes[index] === 'undefined') return;
 
