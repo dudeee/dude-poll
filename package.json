@@ -1,13 +1,13 @@
 {
-  "name": "bolt-poll",
-  "version": "2.1.0",
-  "description": "A bolt plugin to create and manage polls",
+  "name": "dude-poll",
+  "version": "2.1.2",
+  "description": "A dude plugin to create and manage polls",
   "main": "build/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "bolt"
+    "dude"
   ],
   "author": "Mahdi Dibaiee <mdibaiee@aol.com> (http://dibaiee.ir/)",
   "license": "MIT",
